@@ -1,0 +1,40 @@
+#!/bin/bash
+HOST=`hostname`
+INTERFACE=venet0
+DUMPDIR=/root/
+LOGFILE="/root/ddos.log"
+LIMIT="152500"
+DELAY="300"
+TCPDUMP="1"
+EMAIL1="you@spamthis.com"
+STOP="1"
+while /bin/true; do
+  pkt_old=`grep $INTERFACE: /proc/net/dev | cut -d :  -f2 | awk '{ print $10 }'`
+  sleep 1
+  pkt_new=`grep $INTERFACE: /proc/net/dev | cut -d :  -f2 | awk '{ print $10 }'`
+  pkt=$(( $pkt_new - $pkt_old ))
+  echo -ne "\r$pkt outbound packets/s\033[0K"
+  if [ "$pkt" -gt "3000000" ]; then continue; fi
+  if [ "$pkt" -gt "$LIMIT" ]; then
+    echo -e "\n`date` Peak rate exceeded, dumping packets."
+      if [ "$STOP" == "1" ];then 
+	echo "#!/bin/bash">/tmp/stop.sh
+	echo "ifdown venet0">>/tmp/stop.sh
+	echo "sleep $DELAY">>/tmp/stop.sh
+	echo "wait">>/tmp/stop.sh
+	echo "ifup venet0">>/tmp/stop.sh
+	echo "rm -rf /tmp/stop.sh">>/tmp/stop.sh
+	screen -dmS DDoSMON.stop bash /tmp/stop.sh
+      fi
+  if [ "$TCPDUMP" == "1" ];then tcpdump -n -s0 -c 2000 -w $DUMPDIR/dump.`date +"%Y%m%d-%H%M%S"`.cap;fi 
+    echo "`date` Packets dumped, sleeping now."
+	if [ ! -e $LOGFILE ]; then
+		echo "$LOGFILE missing, creating"
+		echo "Packet rate was $pkt packets/s at `date`" > $LOGFILE
+	else
+		echo "Packet rate was $pkt packets/s at `date`" >> $LOGFILE
+	fi
+  if [[ ! -z $EMAIL1 ]]; then mail -s "DDOS ALERT ON $HOST" $EMAIL1 < $LOGFILE ; fi
+  fi
+done
+

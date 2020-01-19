@@ -1,0 +1,18 @@
+#!/bin/bash
+FETCH=1
+INSTALL=1
+SAVEPATH=/media/storage/plex
+
+PUBLIC_PLEXURL="$(wget -q -O- https://plex.tv/pms/downloads/5.json | grep -Eo "(http|https)://[a-zA-Z0-9./?=_-]*"|grep debian|grep amd64)"
+DEBFILE="plexmediaserver_$(echo $PUBLIC_PLEXURL|grep -Eo "_([a-z0-9.-]*)_"|sed 's/_//g')_amd64.deb"
+
+if [[ ${FETCH} ]]; then
+        if [[ ! -e ${SAVEPATH}/${DEBFILE} ]]; then
+                wget -qO${SAVEPATH}/${DEBFILE} ${PUBLIC_PLEXURL}
+        fi
+fi
+
+if [[ ${INSTALL} ]]; then
+        dpkg -i ${SAVEPATH}/${DEBFILE} >/dev/null 2>&1
+fi
+
